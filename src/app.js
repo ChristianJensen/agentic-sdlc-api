@@ -1,6 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 
+const ISO_DATETIME_WITH_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
+function isValidDueDate(value) {
+  if (typeof value !== 'string') return false;
+  return ISO_DATETIME_WITH_TZ.test(value) && !isNaN(new Date(value).getTime());
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -27,6 +34,9 @@ app.post('/tasks', (req, res) => {
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'Title is required' });
   }
+  if (dueDate !== undefined && dueDate !== null && !isValidDueDate(dueDate)) {
+    return res.status(400).json({ error: 'dueDate must be an ISO 8601 date-time with timezone (e.g. 2026-03-15T23:59:59Z)' });
+  }
   const task = {
     id: nextId++,
     title: title.trim(),
@@ -45,7 +55,12 @@ app.patch('/tasks/:id', (req, res) => {
   const { title, completed, dueDate } = req.body;
   if (title !== undefined) task.title = String(title).trim();
   if (completed !== undefined) task.completed = Boolean(completed);
-  if (dueDate !== undefined) task.dueDate = dueDate;
+  if (dueDate !== undefined) {
+    if (dueDate !== null && !isValidDueDate(dueDate)) {
+      return res.status(400).json({ error: 'dueDate must be an ISO 8601 date-time with timezone (e.g. 2026-03-15T23:59:59Z)' });
+    }
+    task.dueDate = dueDate;
+  }
   res.json(task);
 });
 

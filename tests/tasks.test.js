@@ -34,6 +34,18 @@ describe('POST /tasks', () => {
     expect(res.body.dueDate).toBe(dueDate);
   });
 
+  it('rejects invalid dueDate format', async () => {
+    const res = await request(app).post('/tasks').send({ title: 'Test', dueDate: 'not-a-date' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('rejects dueDate without timezone', async () => {
+    const res = await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
   it('rejects empty title', async () => {
     const res = await request(app).post('/tasks').send({ title: '' });
     expect(res.status).toBe(400);
@@ -87,6 +99,20 @@ describe('PATCH /tasks/:id', () => {
     const res = await request(app).patch('/tasks/1').send({ dueDate: null });
     expect(res.status).toBe(200);
     expect(res.body.dueDate).toBeNull();
+  });
+
+  it('rejects invalid dueDate format on patch', async () => {
+    await request(app).post('/tasks').send({ title: 'Test' });
+    const res = await request(app).patch('/tasks/1').send({ dueDate: 'not-a-date' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('rejects dueDate without timezone on patch', async () => {
+    await request(app).post('/tasks').send({ title: 'Test' });
+    const res = await request(app).patch('/tasks/1').send({ dueDate: '2026-03-15T23:59:59' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
   });
 
   it('returns 404 for missing task', async () => {
