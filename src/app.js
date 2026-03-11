@@ -23,11 +23,17 @@ app.get('/tasks/:id', (req, res) => {
 
 // POST /tasks
 app.post('/tasks', (req, res) => {
-  const { title } = req.body;
+  const { title, dueDate } = req.body;
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'Title is required' });
   }
-  const task = { id: nextId++, title: title.trim(), completed: false, createdAt: new Date().toISOString() };
+  const task = {
+    id: nextId++,
+    title: title.trim(),
+    completed: false,
+    createdAt: new Date().toISOString(),
+    dueDate: dueDate !== undefined ? dueDate : null,
+  };
   tasks.set(task.id, task);
   res.status(201).json(task);
 });
@@ -36,9 +42,10 @@ app.post('/tasks', (req, res) => {
 app.patch('/tasks/:id', (req, res) => {
   const task = tasks.get(Number(req.params.id));
   if (!task) return res.status(404).json({ error: 'Task not found' });
-  const { title, completed } = req.body;
+  const { title, completed, dueDate } = req.body;
   if (title !== undefined) task.title = String(title).trim();
   if (completed !== undefined) task.completed = Boolean(completed);
+  if (dueDate !== undefined) task.dueDate = dueDate;
   res.json(task);
 });
 
