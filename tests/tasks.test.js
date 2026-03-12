@@ -227,8 +227,11 @@ describe('Priority field', () => {
     await request(app).post('/tasks').send({ title: 'Default', dueDate: '2026-03-15T23:59:59Z' });
     const res = await request(app).get('/tasks');
     expect(res.status).toBe(200);
-    expect(res.body[0].priority).toBe('High');
-    expect(res.body[1].priority).toBe('Medium');
+    // Tasks are ordered by position ASC; newest task is at position 0
+    const highTask = res.body.find(t => t.title === 'High');
+    const defaultTask = res.body.find(t => t.title === 'Default');
+    expect(highTask.priority).toBe('High');
+    expect(defaultTask.priority).toBe('Medium');
   });
 
   it('PATCH accepts valid priority values', async () => {
