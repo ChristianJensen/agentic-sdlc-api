@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 
 const ISO_DATETIME_WITH_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+const VALID_CATEGORIES = ['Work', 'Personal', 'Errands'];
 
 function isValidDueDate(value) {
   if (typeof value !== 'string') return false;
@@ -18,6 +19,10 @@ let nextId = 1;
 
 // GET /tasks
 app.get('/tasks', (req, res) => {
+  const { category } = req.query;
+  if (category !== undefined) {
+    return res.json([...tasks.values()].filter(t => t.category === category));
+  }
   res.json([...tasks.values()]);
 });
 
@@ -30,12 +35,15 @@ app.get('/tasks/:id', (req, res) => {
 
 // POST /tasks
 app.post('/tasks', (req, res) => {
-  const { title, dueDate } = req.body;
+  const { title, dueDate, category } = req.body;
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'Title is required' });
   }
   if (!dueDate || !isValidDueDate(dueDate)) {
     return res.status(400).json({ error: 'dueDate is required and must be an ISO 8601 date-time with timezone (e.g. 2026-03-15T23:59:59Z)' });
+  }
+  if (category !== undefined && category !== null && !VALID_CATEGORIES.includes(category)) {
+    return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
   }
   const task = {
     id: nextId++,
@@ -43,6 +51,7 @@ app.post('/tasks', (req, res) => {
     completed: false,
     createdAt: new Date().toISOString(),
     dueDate,
+    category: category !== undefined ? category : null,
   };
   tasks.set(task.id, task);
   res.status(201).json(task);
@@ -52,7 +61,7 @@ app.post('/tasks', (req, res) => {
 app.patch('/tasks/:id', (req, res) => {
   const task = tasks.get(Number(req.params.id));
   if (!task) return res.status(404).json({ error: 'Task not found' });
-  const { title, completed, dueDate } = req.body;
+  const { title, completed, dueDate, category } = req.body;
   if (title !== undefined) task.title = String(title).trim();
   if (completed !== undefined) task.completed = Boolean(completed);
   if (dueDate !== undefined) {
@@ -60,6 +69,12 @@ app.patch('/tasks/:id', (req, res) => {
       return res.status(400).json({ error: 'dueDate must be an ISO 8601 date-time with timezone (e.g. 2026-03-15T23:59:59Z)' });
     }
     task.dueDate = dueDate;
+  }
+  if (category !== undefined) {
+    if (category !== null && !VALID_CATEGORIES.includes(category)) {
+      return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
+    }
+    task.category = category;
   }
   res.json(task);
 });
