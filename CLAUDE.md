@@ -38,12 +38,20 @@ npm test           # Run tests
 }
 ```
 
-## Agent Workflow (yx)
+## Agent Workflow (GitHub Issues)
+
+Work is coordinated via GitHub Issues with labels:
 
 ```bash
-yx ls --format json          # See available work
-yx state "task name" wip     # Claim a task
-yx done "task name"          # Mark complete
-yx add "subtask" --under "parent"  # Discovered sub-work
-yx sync                      # Push/pull task state
+# Discover work (done by agent-watcher.sh automatically)
+gh issue list --label "agent:ready" --label "type:task" --json number,title,body
+
+# Claim a task (watcher does this)
+gh issue edit <N> --remove-label "agent:ready" --add-label "agent:wip"
+
+# After implementation, create a PR that auto-closes the issue
+gh pr create --title "Task title" --body "Closes #<N>"
+
+# If sub-work is discovered
+gh issue create --title "Sub-task" --label "agent:ready,type:task" --body "Description"
 ```
