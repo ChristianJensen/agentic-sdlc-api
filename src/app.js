@@ -3,6 +3,7 @@ const cors = require('cors');
 
 const ISO_DATETIME_WITH_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 const VALID_CATEGORIES = ['Work', 'Personal', 'Errands'];
+const VALID_PRIORITIES = ['High', 'Medium', 'Low'];
 
 function isValidDueDate(value) {
   if (typeof value !== 'string') return false;
@@ -42,7 +43,7 @@ app.get('/tasks/:id', (req, res) => {
 
 // POST /tasks
 app.post('/tasks', (req, res) => {
-  const { title, dueDate, category } = req.body;
+  const { title, dueDate, category, priority } = req.body;
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'Title is required' });
   }
@@ -52,6 +53,9 @@ app.post('/tasks', (req, res) => {
   if (category !== undefined && category !== null && !VALID_CATEGORIES.includes(category)) {
     return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
   }
+  if (priority !== undefined && !VALID_PRIORITIES.includes(priority)) {
+    return res.status(400).json({ error: `priority must be one of: ${VALID_PRIORITIES.join(', ')}` });
+  }
   const task = {
     id: nextId++,
     title: title.trim(),
@@ -59,6 +63,7 @@ app.post('/tasks', (req, res) => {
     createdAt: new Date().toISOString(),
     dueDate,
     category: category !== undefined ? category : null,
+    priority: priority !== undefined ? priority : 'Medium',
   };
   tasks.set(task.id, task);
   res.status(201).json(taskWithCount(task));
@@ -68,7 +73,7 @@ app.post('/tasks', (req, res) => {
 app.patch('/tasks/:id', (req, res) => {
   const task = tasks.get(Number(req.params.id));
   if (!task) return res.status(404).json({ error: 'Task not found' });
-  const { title, completed, dueDate, category } = req.body;
+  const { title, completed, dueDate, category, priority } = req.body;
   if (title !== undefined) task.title = String(title).trim();
   if (completed !== undefined) task.completed = Boolean(completed);
   if (dueDate !== undefined) {
@@ -82,6 +87,12 @@ app.patch('/tasks/:id', (req, res) => {
       return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
     }
     task.category = category;
+  }
+  if (priority !== undefined) {
+    if (!VALID_PRIORITIES.includes(priority)) {
+      return res.status(400).json({ error: `priority must be one of: ${VALID_PRIORITIES.join(', ')}` });
+    }
+    task.priority = priority;
   }
   res.json(taskWithCount(task));
 });

@@ -190,6 +190,78 @@ describe('Category field', () => {
   });
 });
 
+describe('Priority field', () => {
+  it('POST defaults priority to Medium when not provided', async () => {
+    const res = await request(app).post('/tasks').send({ title: 'No priority', dueDate: '2026-03-15T23:59:59Z' });
+    expect(res.status).toBe(201);
+    expect(res.body.priority).toBe('Medium');
+  });
+
+  it('POST accepts valid priority values', async () => {
+    for (const priority of ['High', 'Medium', 'Low']) {
+      app._resetStore();
+      const res = await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z', priority });
+      expect(res.status).toBe(201);
+      expect(res.body.priority).toBe(priority);
+    }
+  });
+
+  it('POST rejects invalid priority values', async () => {
+    for (const priority of ['Urgent', 'high', 'low', 'medium', '', 'HIGH']) {
+      app._resetStore();
+      const res = await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z', priority });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBeDefined();
+    }
+  });
+
+  it('GET /tasks/:id always includes priority', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).get('/tasks/1');
+    expect(res.status).toBe(200);
+    expect(res.body.priority).toBe('Medium');
+  });
+
+  it('GET /tasks returns priority on all tasks', async () => {
+    await request(app).post('/tasks').send({ title: 'High', dueDate: '2026-03-15T23:59:59Z', priority: 'High' });
+    await request(app).post('/tasks').send({ title: 'Default', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).get('/tasks');
+    expect(res.status).toBe(200);
+    expect(res.body[0].priority).toBe('High');
+    expect(res.body[1].priority).toBe('Medium');
+  });
+
+  it('PATCH accepts valid priority values', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).patch('/tasks/1').send({ priority: 'High' });
+    expect(res.status).toBe(200);
+    expect(res.body.priority).toBe('High');
+  });
+
+  it('PATCH rejects null priority', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).patch('/tasks/1').send({ priority: null });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('PATCH rejects invalid priority values', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    for (const priority of ['Urgent', 'high', '']) {
+      const res = await request(app).patch('/tasks/1').send({ priority });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBeDefined();
+    }
+  });
+
+  it('PATCH response includes priority', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z', priority: 'Low' });
+    const res = await request(app).patch('/tasks/1').send({ title: 'Updated' });
+    expect(res.status).toBe(200);
+    expect(res.body.priority).toBe('Low');
+  });
+});
+
 describe('commentCount on task responses', () => {
   it('GET /tasks returns commentCount 0 for tasks with no comments', async () => {
     await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
