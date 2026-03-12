@@ -42,13 +42,17 @@ function applyAutoComplete(taskId) {
   task.completed = allComplete;
 }
 
+function sortedTasks() {
+  return [...tasks.values()].sort((a, b) => a.position - b.position);
+}
+
 // GET /tasks
 app.get('/tasks', (req, res) => {
   const { category } = req.query;
   if (category !== undefined) {
-    return res.json([...tasks.values()].filter(t => t.category === category).map(taskWithCount));
+    return res.json(sortedTasks().filter(t => t.category === category).map(taskWithCount));
   }
-  res.json([...tasks.values()].map(taskWithCount));
+  res.json(sortedTasks().map(taskWithCount));
 });
 
 // GET /tasks/:id
@@ -73,6 +77,10 @@ app.post('/tasks', (req, res) => {
   if (priority !== undefined && !VALID_PRIORITIES.includes(priority)) {
     return res.status(400).json({ error: `priority must be one of: ${VALID_PRIORITIES.join(', ')}` });
   }
+  // Shift all existing tasks down by 1
+  for (const t of tasks.values()) {
+    t.position += 1;
+  }
   const task = {
     id: nextId++,
     title: title.trim(),
@@ -81,6 +89,7 @@ app.post('/tasks', (req, res) => {
     dueDate,
     category: category !== undefined ? category : null,
     priority: priority !== undefined ? priority : 'Medium',
+    position: 0,
   };
   tasks.set(task.id, task);
   res.status(201).json(taskWithCount(task));
@@ -90,7 +99,7 @@ app.post('/tasks', (req, res) => {
 app.patch('/tasks/:id', (req, res) => {
   const task = tasks.get(Number(req.params.id));
   if (!task) return res.status(404).json({ error: 'Task not found' });
-  const { title, completed, dueDate, category, priority } = req.body;
+  const { title, completed, dueDate, category, priority, position } = req.body;
   if (title !== undefined) task.title = String(title).trim();
   if (completed !== undefined) {
     const hasSubtasks = [...subtasks.values()].some(s => s.taskId === task.id);
@@ -116,6 +125,29 @@ app.patch('/tasks/:id', (req, res) => {
       return res.status(400).json({ error: `priority must be one of: ${VALID_PRIORITIES.join(', ')}` });
     }
     task.priority = priority;
+  }
+  if (position !== undefined) {
+    const count = tasks.size;
+    const targetPos = Math.max(0, Math.min(Math.floor(position), count - 1));
+    const currentPos = task.position;
+    if (targetPos !== currentPos) {
+      if (targetPos < currentPos) {
+        // Moving up: shift tasks in [targetPos, currentPos-1] down by 1
+        for (const t of tasks.values()) {
+          if (t.id !== task.id && t.position >= targetPos && t.position < currentPos) {
+            t.position += 1;
+          }
+        }
+      } else {
+        // Moving down: shift tasks in [currentPos+1, targetPos] up by 1
+        for (const t of tasks.values()) {
+          if (t.id !== task.id && t.position > currentPos && t.position <= targetPos) {
+            t.position -= 1;
+          }
+        }
+      }
+      task.position = targetPos;
+    }
   }
   res.json(taskWithCount(task));
 });
@@ -215,8 +247,16 @@ app.delete('/tasks/:id/subtasks/:subtaskId', (req, res) => {
 // DELETE /tasks/:id
 app.delete('/tasks/:id', (req, res) => {
   const id = Number(req.params.id);
-  if (!tasks.has(id)) return res.status(404).json({ error: 'Task not found' });
+  const task = tasks.get(id);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  const deletedPosition = task.position;
   tasks.delete(id);
+  // Compact positions
+  for (const t of tasks.values()) {
+    if (t.position > deletedPosition) {
+      t.position -= 1;
+    }
+  }
   for (const [commentId, comment] of comments) {
     if (comment.taskId === id) comments.delete(commentId);
   }
