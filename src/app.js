@@ -34,15 +34,15 @@ app.post('/tasks', (req, res) => {
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'Title is required' });
   }
-  if (dueDate !== undefined && dueDate !== null && !isValidDueDate(dueDate)) {
-    return res.status(400).json({ error: 'dueDate must be an ISO 8601 date-time with timezone (e.g. 2026-03-15T23:59:59Z)' });
+  if (!dueDate || !isValidDueDate(dueDate)) {
+    return res.status(400).json({ error: 'dueDate is required and must be an ISO 8601 date-time with timezone (e.g. 2026-03-15T23:59:59Z)' });
   }
   const task = {
     id: nextId++,
     title: title.trim(),
     completed: false,
     createdAt: new Date().toISOString(),
-    dueDate: dueDate !== undefined ? dueDate : null,
+    dueDate,
   };
   tasks.set(task.id, task);
   res.status(201).json(task);

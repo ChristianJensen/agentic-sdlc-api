@@ -15,16 +15,18 @@ describe('GET /tasks', () => {
 
 describe('POST /tasks', () => {
   it('creates a task', async () => {
-    const res = await request(app).post('/tasks').send({ title: 'Buy milk' });
+    const dueDate = '2026-03-15T23:59:59Z';
+    const res = await request(app).post('/tasks').send({ title: 'Buy milk', dueDate });
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ id: 1, title: 'Buy milk', completed: false });
     expect(res.body.createdAt).toBeDefined();
+    expect(res.body.dueDate).toBe(dueDate);
   });
 
-  it('creates a task without dueDate (dueDate is null)', async () => {
+  it('rejects missing dueDate', async () => {
     const res = await request(app).post('/tasks').send({ title: 'No due date' });
-    expect(res.status).toBe(201);
-    expect(res.body.dueDate).toBeNull();
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
   });
 
   it('creates a task with dueDate', async () => {
@@ -47,7 +49,8 @@ describe('POST /tasks', () => {
   });
 
   it('rejects empty title', async () => {
-    const res = await request(app).post('/tasks').send({ title: '' });
+    const dueDate = '2026-03-15T23:59:59Z';
+    const res = await request(app).post('/tasks').send({ title: '', dueDate });
     expect(res.status).toBe(400);
   });
 
@@ -59,10 +62,11 @@ describe('POST /tasks', () => {
 
 describe('GET /tasks/:id', () => {
   it('returns a task by id', async () => {
-    await request(app).post('/tasks').send({ title: 'Test' });
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
     const res = await request(app).get('/tasks/1');
     expect(res.status).toBe(200);
     expect(res.body.title).toBe('Test');
+    expect(res.body.dueDate).toBe('2026-03-15T23:59:59Z');
   });
 
   it('returns 404 for missing task', async () => {
@@ -73,20 +77,20 @@ describe('GET /tasks/:id', () => {
 
 describe('PATCH /tasks/:id', () => {
   it('updates title', async () => {
-    await request(app).post('/tasks').send({ title: 'Old' });
+    await request(app).post('/tasks').send({ title: 'Old', dueDate: '2026-03-15T23:59:59Z' });
     const res = await request(app).patch('/tasks/1').send({ title: 'New' });
     expect(res.status).toBe(200);
     expect(res.body.title).toBe('New');
   });
 
   it('toggles completed', async () => {
-    await request(app).post('/tasks').send({ title: 'Test' });
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
     const res = await request(app).patch('/tasks/1').send({ completed: true });
     expect(res.body.completed).toBe(true);
   });
 
   it('updates dueDate', async () => {
-    await request(app).post('/tasks').send({ title: 'Test' });
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
     const dueDate = '2026-04-01T12:00:00Z';
     const res = await request(app).patch('/tasks/1').send({ dueDate });
     expect(res.status).toBe(200);
@@ -102,14 +106,14 @@ describe('PATCH /tasks/:id', () => {
   });
 
   it('rejects invalid dueDate format on patch', async () => {
-    await request(app).post('/tasks').send({ title: 'Test' });
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
     const res = await request(app).patch('/tasks/1').send({ dueDate: 'not-a-date' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBeDefined();
   });
 
   it('rejects dueDate without timezone on patch', async () => {
-    await request(app).post('/tasks').send({ title: 'Test' });
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
     const res = await request(app).patch('/tasks/1').send({ dueDate: '2026-03-15T23:59:59' });
     expect(res.status).toBe(400);
     expect(res.body.error).toBeDefined();
@@ -123,7 +127,7 @@ describe('PATCH /tasks/:id', () => {
 
 describe('DELETE /tasks/:id', () => {
   it('deletes a task', async () => {
-    await request(app).post('/tasks').send({ title: 'Doomed' });
+    await request(app).post('/tasks').send({ title: 'Doomed', dueDate: '2026-03-15T23:59:59Z' });
     const res = await request(app).delete('/tasks/1');
     expect(res.status).toBe(204);
 
