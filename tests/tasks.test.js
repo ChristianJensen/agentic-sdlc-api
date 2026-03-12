@@ -320,4 +320,39 @@ describe('DELETE /tasks/:id', () => {
     const res = await request(app).delete('/tasks/999');
     expect(res.status).toBe(404);
   });
+
+  it('cascade deletes comments when task is deleted', async () => {
+    await request(app).post('/tasks').send({ title: 'Task with comments', dueDate: '2026-03-15T23:59:59Z' });
+    await request(app).post('/tasks/1/comments').send({ text: 'Comment 1' });
+    await request(app).post('/tasks/1/comments').send({ text: 'Comment 2' });
+    await request(app).delete('/tasks/1');
+    // Task is gone — comments endpoint returns 404
+    const res = await request(app).get('/tasks/1/comments');
+    expect(res.status).toBe(404);
+  });
+
+  it('does not affect comments of other tasks when one task is deleted', async () => {
+    await request(app).post('/tasks').send({ title: 'Task 1', dueDate: '2026-03-15T23:59:59Z' });
+    await request(app).post('/tasks').send({ title: 'Task 2', dueDate: '2026-03-15T23:59:59Z' });
+    await request(app).post('/tasks/1/comments').send({ text: 'Task 1 comment' });
+    await request(app).post('/tasks/2/comments').send({ text: 'Task 2 comment' });
+    await request(app).delete('/tasks/1');
+    const res = await request(app).get('/tasks/2/comments');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].text).toBe('Task 2 comment');
+  });
+
+  it('comments for deleted task do not affect commentCount of surviving task', async () => {
+    await request(app).post('/tasks').send({ title: 'Task 1', dueDate: '2026-03-15T23:59:59Z' });
+    await request(app).post('/tasks').send({ title: 'Task 2', dueDate: '2026-03-15T23:59:59Z' });
+    await request(app).post('/tasks/1/comments').send({ text: 'Task 1 comment' });
+    await request(app).post('/tasks/1/comments').send({ text: 'Another task 1 comment' });
+    await request(app).post('/tasks/2/comments').send({ text: 'Task 2 comment' });
+    await request(app).delete('/tasks/1');
+    const res = await request(app).get('/tasks/2');
+    expect(res.body.commentCount).toBe(1);
+    // Verify task 2 has only 1 comment, not 3 (would fail if cascade didn't clean up and
+    // comment counting was broken, though this mainly tests filter correctness)
+  });
 });

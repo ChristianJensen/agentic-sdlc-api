@@ -121,6 +121,9 @@ app.delete('/tasks/:id', (req, res) => {
   const id = Number(req.params.id);
   if (!tasks.has(id)) return res.status(404).json({ error: 'Task not found' });
   tasks.delete(id);
+  for (const [commentId, comment] of comments) {
+    if (comment.taskId === id) comments.delete(commentId);
+  }
   res.status(204).end();
 });
 
