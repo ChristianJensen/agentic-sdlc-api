@@ -125,6 +125,71 @@ describe('PATCH /tasks/:id', () => {
   });
 });
 
+describe('Category field', () => {
+  it('POST creates task with category', async () => {
+    const res = await request(app).post('/tasks').send({ title: 'Work task', dueDate: '2026-03-15T23:59:59Z', category: 'Work' });
+    expect(res.status).toBe(201);
+    expect(res.body.category).toBe('Work');
+  });
+
+  it('POST defaults category to null when not provided', async () => {
+    const res = await request(app).post('/tasks').send({ title: 'No cat', dueDate: '2026-03-15T23:59:59Z' });
+    expect(res.status).toBe(201);
+    expect(res.body.category).toBeNull();
+  });
+
+  it('POST accepts null category explicitly', async () => {
+    const res = await request(app).post('/tasks').send({ title: 'No cat', dueDate: '2026-03-15T23:59:59Z', category: null });
+    expect(res.status).toBe(201);
+    expect(res.body.category).toBeNull();
+  });
+
+  it('POST rejects invalid category', async () => {
+    const res = await request(app).post('/tasks').send({ title: 'Bad cat', dueDate: '2026-03-15T23:59:59Z', category: 'Invalid' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('GET /tasks?category=Work filters by category', async () => {
+    await request(app).post('/tasks').send({ title: 'Work task', dueDate: '2026-03-15T23:59:59Z', category: 'Work' });
+    await request(app).post('/tasks').send({ title: 'Personal task', dueDate: '2026-03-15T23:59:59Z', category: 'Personal' });
+    await request(app).post('/tasks').send({ title: 'No cat', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).get('/tasks?category=Work');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].category).toBe('Work');
+  });
+
+  it('GET /tasks returns all tasks when no category filter', async () => {
+    await request(app).post('/tasks').send({ title: 'Work task', dueDate: '2026-03-15T23:59:59Z', category: 'Work' });
+    await request(app).post('/tasks').send({ title: 'No cat', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).get('/tasks');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+  });
+
+  it('PATCH can set category', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).patch('/tasks/1').send({ category: 'Errands' });
+    expect(res.status).toBe(200);
+    expect(res.body.category).toBe('Errands');
+  });
+
+  it('PATCH can remove category by setting null', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z', category: 'Work' });
+    const res = await request(app).patch('/tasks/1').send({ category: null });
+    expect(res.status).toBe(200);
+    expect(res.body.category).toBeNull();
+  });
+
+  it('PATCH rejects invalid category', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).patch('/tasks/1').send({ category: 'BadCat' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+});
+
 describe('DELETE /tasks/:id', () => {
   it('deletes a task', async () => {
     await request(app).post('/tasks').send({ title: 'Doomed', dueDate: '2026-03-15T23:59:59Z' });
