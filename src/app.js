@@ -13,24 +13,31 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// In-memory task store
+// In-memory stores
 const tasks = new Map();
 let nextId = 1;
+const comments = new Map();
+let nextCommentId = 1;
+
+function taskWithCount(task) {
+  const count = [...comments.values()].filter(c => c.taskId === task.id).length;
+  return { ...task, commentCount: count };
+}
 
 // GET /tasks
 app.get('/tasks', (req, res) => {
   const { category } = req.query;
   if (category !== undefined) {
-    return res.json([...tasks.values()].filter(t => t.category === category));
+    return res.json([...tasks.values()].filter(t => t.category === category).map(taskWithCount));
   }
-  res.json([...tasks.values()]);
+  res.json([...tasks.values()].map(taskWithCount));
 });
 
 // GET /tasks/:id
 app.get('/tasks/:id', (req, res) => {
   const task = tasks.get(Number(req.params.id));
   if (!task) return res.status(404).json({ error: 'Task not found' });
-  res.json(task);
+  res.json(taskWithCount(task));
 });
 
 // POST /tasks
@@ -54,7 +61,7 @@ app.post('/tasks', (req, res) => {
     category: category !== undefined ? category : null,
   };
   tasks.set(task.id, task);
-  res.status(201).json(task);
+  res.status(201).json(taskWithCount(task));
 });
 
 // PATCH /tasks/:id
@@ -76,7 +83,7 @@ app.patch('/tasks/:id', (req, res) => {
     }
     task.category = category;
   }
-  res.json(task);
+  res.json(taskWithCount(task));
 });
 
 // DELETE /tasks/:id
@@ -88,6 +95,6 @@ app.delete('/tasks/:id', (req, res) => {
 });
 
 // Reset for testing
-app._resetStore = () => { tasks.clear(); nextId = 1; };
+app._resetStore = () => { tasks.clear(); nextId = 1; comments.clear(); nextCommentId = 1; };
 
 module.exports = app;

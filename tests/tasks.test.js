@@ -190,6 +190,38 @@ describe('Category field', () => {
   });
 });
 
+describe('commentCount on task responses', () => {
+  it('GET /tasks returns commentCount 0 for tasks with no comments', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).get('/tasks');
+    expect(res.status).toBe(200);
+    expect(res.body[0].commentCount).toBe(0);
+  });
+
+  it('GET /tasks/:id returns commentCount 0 for task with no comments', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).get('/tasks/1');
+    expect(res.status).toBe(200);
+    expect(res.body.commentCount).toBe(0);
+  });
+
+  it('POST /tasks returns commentCount 0 on newly created task', async () => {
+    const res = await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    expect(res.status).toBe(201);
+    expect(res.body.commentCount).toBe(0);
+  });
+
+  it('_resetStore clears comments store and resets comment ID counter', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    app._resetStore();
+    const res = await request(app).get('/tasks');
+    expect(res.body).toEqual([]);
+    // After reset, new task has id=1 again
+    const created = await request(app).post('/tasks').send({ title: 'After reset', dueDate: '2026-03-15T23:59:59Z' });
+    expect(created.body.id).toBe(1);
+  });
+});
+
 describe('DELETE /tasks/:id', () => {
   it('deletes a task', async () => {
     await request(app).post('/tasks').send({ title: 'Doomed', dueDate: '2026-03-15T23:59:59Z' });
