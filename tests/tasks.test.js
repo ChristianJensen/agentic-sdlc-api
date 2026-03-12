@@ -222,6 +222,90 @@ describe('commentCount on task responses', () => {
   });
 });
 
+describe('GET /tasks/:id/comments', () => {
+  it('returns empty array for task with no comments', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).get('/tasks/1/comments');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('returns 404 for nonexistent task', async () => {
+    const res = await request(app).get('/tasks/999/comments');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('returns comments oldest-first', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    await request(app).post('/tasks/1/comments').send({ text: 'First' });
+    await request(app).post('/tasks/1/comments').send({ text: 'Second' });
+    const res = await request(app).get('/tasks/1/comments');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0].text).toBe('First');
+    expect(res.body[1].text).toBe('Second');
+  });
+});
+
+describe('POST /tasks/:id/comments', () => {
+  it('creates a comment and returns 201 with all fields', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).post('/tasks/1/comments').send({ text: 'Great task' });
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBeDefined();
+    expect(res.body.taskId).toBe(1);
+    expect(res.body.text).toBe('Great task');
+    expect(res.body.createdAt).toBeDefined();
+  });
+
+  it('returns 404 for nonexistent task', async () => {
+    const res = await request(app).post('/tasks/999/comments').send({ text: 'Hello' });
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('trims whitespace from text', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).post('/tasks/1/comments').send({ text: '  trimmed  ' });
+    expect(res.status).toBe(201);
+    expect(res.body.text).toBe('trimmed');
+  });
+
+  it('rejects empty text with 400', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).post('/tasks/1/comments').send({ text: '' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('rejects whitespace-only text with 400', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).post('/tasks/1/comments').send({ text: '   ' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('rejects text over 2000 characters with 400', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    const res = await request(app).post('/tasks/1/comments').send({ text: 'a'.repeat(2001) });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('checks task existence before body validation (404 before 400)', async () => {
+    const res = await request(app).post('/tasks/999/comments').send({ text: '' });
+    expect(res.status).toBe(404);
+  });
+
+  it('updates commentCount on GET /tasks/:id after adding comment', async () => {
+    await request(app).post('/tasks').send({ title: 'Test', dueDate: '2026-03-15T23:59:59Z' });
+    await request(app).post('/tasks/1/comments').send({ text: 'A comment' });
+    const res = await request(app).get('/tasks/1');
+    expect(res.body.commentCount).toBe(1);
+  });
+});
+
 describe('DELETE /tasks/:id', () => {
   it('deletes a task', async () => {
     await request(app).post('/tasks').send({ title: 'Doomed', dueDate: '2026-03-15T23:59:59Z' });

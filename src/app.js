@@ -86,6 +86,36 @@ app.patch('/tasks/:id', (req, res) => {
   res.json(taskWithCount(task));
 });
 
+// GET /tasks/:id/comments
+app.get('/tasks/:id/comments', (req, res) => {
+  const id = Number(req.params.id);
+  if (!tasks.has(id)) return res.status(404).json({ error: 'Task not found' });
+  const taskComments = [...comments.values()].filter(c => c.taskId === id);
+  res.json(taskComments);
+});
+
+// POST /tasks/:id/comments
+app.post('/tasks/:id/comments', (req, res) => {
+  const id = Number(req.params.id);
+  if (!tasks.has(id)) return res.status(404).json({ error: 'Task not found' });
+  const { text } = req.body;
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ error: 'text is required and cannot be empty' });
+  }
+  const trimmed = text.trim();
+  if (trimmed.length > 2000) {
+    return res.status(400).json({ error: 'text must be 2000 characters or fewer' });
+  }
+  const comment = {
+    id: nextCommentId++,
+    taskId: id,
+    text: trimmed,
+    createdAt: new Date().toISOString(),
+  };
+  comments.set(comment.id, comment);
+  res.status(201).json(comment);
+});
+
 // DELETE /tasks/:id
 app.delete('/tasks/:id', (req, res) => {
   const id = Number(req.params.id);
