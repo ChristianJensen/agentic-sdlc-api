@@ -1,0 +1,1 @@
+../../../framework/.claude/skills/whats-next.md
