@@ -38,20 +38,53 @@ npm test           # Run tests
 }
 ```
 
-## Agent Workflow (GitHub Issues)
+## Agent Workflow (Git Queue)
 
-Work is coordinated via GitHub Issues with labels:
+Work is coordinated via the Git-native task queue at `../framework/queue/`.
+
+### Finding work
+
+Task files are Markdown with YAML frontmatter. Filter by `target-repo: api` and `status: ready`.
 
 ```bash
-# Discover work (done by agent-watcher.sh automatically)
-gh issue list --label "agent:ready" --label "type:task" --json number,title,body
+# Refresh the queue
+git -C ../framework pull --ff-only
 
-# Claim a task (watcher does this)
-gh issue edit <N> --remove-label "agent:ready" --add-label "agent:wip"
-
-# After implementation, create a PR that auto-closes the issue
-gh pr create --title "Task title" --body "Closes #<N>"
-
-# If sub-work is discovered
-gh issue create --title "Sub-task" --label "agent:ready,type:task" --body "Description"
+# Check what's already claimed
+git ls-remote origin 'refs/heads/agent/*'
 ```
+
+### Branch naming
+
+`agent/<intent>-w<wave>-<task-slug>` — derived from the queue file path.
+
+### Claiming a task
+
+```bash
+git checkout -b agent/<slug> origin/main
+git commit --allow-empty -m "claim: <agent-id>"
+git push origin agent/<slug>   # atomic — first push wins
+```
+
+### Creating a PR
+
+PRs must include context links and labels:
+
+```bash
+gh pr create \
+  --title "[<intent> wave <N>] <description>" \
+  --body "## Context
+- **Intent Spec:** [link to intent]
+- **Task:** [link to task file]
+- **Contract:** [link to contract]
+
+## What this PR does
+<description>
+
+## Acceptance Criteria
+<from task file>"
+```
+
+### Discovered sub-work
+
+If you discover additional work needed, create a new task file in `../framework/queue/<intent>/` following the template at `../framework/templates/task-queue-item.md`.
