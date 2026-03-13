@@ -48,11 +48,21 @@ function sortedTasks() {
 
 // GET /tasks
 app.get('/tasks', (req, res) => {
-  const { category } = req.query;
-  if (category !== undefined) {
-    return res.json(sortedTasks().filter(t => t.category === category).map(taskWithCount));
+  const { category, search } = req.query;
+
+  if (search !== undefined && search.trim().length > 100) {
+    return res.status(400).json({ error: 'search must be 100 characters or fewer' });
   }
-  res.json(sortedTasks().map(taskWithCount));
+
+  let result = sortedTasks();
+  if (category !== undefined) {
+    result = result.filter(t => t.category === category);
+  }
+  if (search !== undefined && search.trim().length > 0) {
+    const term = search.trim().toLowerCase();
+    result = result.filter(t => t.title.toLowerCase().includes(term));
+  }
+  res.json(result.map(taskWithCount));
 });
 
 // GET /tasks/:id
