@@ -68,8 +68,8 @@ app.post('/tasks', (req, res) => {
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'Title is required' });
   }
-  if (!dueDate || !isValidDueDate(dueDate)) {
-    return res.status(400).json({ error: 'dueDate is required and must be an ISO 8601 date-time with timezone (e.g. 2026-03-15T23:59:59Z)' });
+  if (dueDate !== undefined && dueDate !== null && !isValidDueDate(dueDate)) {
+    return res.status(400).json({ error: 'dueDate must be an ISO 8601 date-time with timezone (e.g. 2026-03-15T23:59:59Z)' });
   }
   if (category !== undefined && category !== null && !VALID_CATEGORIES.includes(category)) {
     return res.status(400).json({ error: `category must be one of: ${VALID_CATEGORIES.join(', ')}` });
@@ -86,7 +86,7 @@ app.post('/tasks', (req, res) => {
     title: title.trim(),
     completed: false,
     createdAt: new Date().toISOString(),
-    dueDate,
+    dueDate: dueDate !== undefined ? dueDate : null,
     category: category !== undefined ? category : null,
     priority: priority !== undefined ? priority : 'Medium',
     position: 0,
