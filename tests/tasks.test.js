@@ -23,10 +23,10 @@ describe('POST /tasks', () => {
     expect(res.body.dueDate).toBe(dueDate);
   });
 
-  it('rejects missing dueDate', async () => {
+  it('creates task without dueDate, defaulting dueDate to null', async () => {
     const res = await request(app).post('/tasks').send({ title: 'No due date' });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBeDefined();
+    expect(res.status).toBe(201);
+    expect(res.body.dueDate).toBeNull();
   });
 
   it('creates a task with dueDate', async () => {
