@@ -381,6 +381,66 @@ describe('POST /tasks/:id/comments', () => {
   });
 });
 
+describe('GET /tasks?search=', () => {
+  beforeEach(async () => {
+    await request(app).post('/tasks').send({ title: 'Buy milk', category: 'Errands' });
+    await request(app).post('/tasks').send({ title: 'Buy groceries', category: 'Errands' });
+    await request(app).post('/tasks').send({ title: 'Walk the dog', category: 'Personal' });
+  });
+
+  it('filters tasks whose title contains the search string (case-insensitive)', async () => {
+    const res = await request(app).get('/tasks?search=buy');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body.every(t => t.title.toLowerCase().includes('buy'))).toBe(true);
+  });
+
+  it('is case-insensitive (uppercase search matches lowercase title)', async () => {
+    const res = await request(app).get('/tasks?search=BUY');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+  });
+
+  it('combines search and category filters with AND logic', async () => {
+    const res = await request(app).get('/tasks?search=buy&category=Errands');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body.every(t => t.category === 'Errands')).toBe(true);
+  });
+
+  it('returns all tasks when search param is empty string', async () => {
+    const res = await request(app).get('/tasks?search=');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(3);
+  });
+
+  it('returns all tasks when search param is whitespace only', async () => {
+    const res = await request(app).get('/tasks?search=%20%20');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(3);
+  });
+
+  it('returns 400 when search string exceeds 100 characters', async () => {
+    const longSearch = 'a'.repeat(101);
+    const res = await request(app).get(`/tasks?search=${longSearch}`);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
+  });
+
+  it('returns all tasks when no search param provided', async () => {
+    const res = await request(app).get('/tasks');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(3);
+  });
+
+  it('preserves position ordering in search results', async () => {
+    const res = await request(app).get('/tasks?search=buy');
+    expect(res.status).toBe(200);
+    const positions = res.body.map(t => t.position);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+});
+
 describe('DELETE /tasks/:id', () => {
   it('deletes a task', async () => {
     await request(app).post('/tasks').send({ title: 'Doomed', dueDate: '2026-03-15T23:59:59Z' });
